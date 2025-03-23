@@ -38,6 +38,9 @@ class SimpleEarningsApp:
         self.tree.heading("Expected Move", text="Expected Move")
         self.tree.pack(fill="both", expand=True)
 
+        self.status_label = ttk.Label(self.root, text="Query Complete", foreground="green")
+        self.status_label.pack(side="bottom", fill="x", padx=10, pady=10)
+
         threshold_frame = ttk.Frame(self.root, padding=10)
         threshold_frame.pack(fill="x", padx=10, pady=10)
 
@@ -56,17 +59,24 @@ class SimpleEarningsApp:
         self.ts_slope_entry.insert(0, '-0.00406')
         self.ts_slope_entry.pack(side="left", padx=(0, 5))
 
-    def add_stock_to_tree(self, stock_info):
+    def add_stock_to_tree(self, stock_info, passes_threshold):
+        tag = "green" if passes_threshold else "red"
         self.tree.insert("", "end", values=(
             stock_info['ticker'],
             f"{stock_info['avg_volume']:,}",
             f"{stock_info['iv30_rv30']:.2f}",
             f"{stock_info['ts_slope_0_45']:.5f}",
             f"{stock_info['expected_move']}"
-        ))
+        ), tags=(tag,))
+        
+        self.tree.tag_configure("green", background="lightgreen")
+        self.tree.tag_configure("red", background="lightcoral")
+
 
     def on_scan_earnings(self):
         selected_date = self.date_entry.get()
+        self.status_label.config(text="Scanning Earnings", foreground="red")
+        self.root.update()
         self.scan_earnings_callback(selected_date)
 
     def tradedOnNYSEOrNasdaq(self, stock):
@@ -92,9 +102,9 @@ class SimpleEarningsApp:
         for stock in filteredStocks:
             computedData = self.compute_recommendation(stock)
             if isinstance(computedData, dict):
-                if self.passesThresholds(computedData):
-                    computedData['ticker'] = stock
-                    self.add_stock_to_tree(computedData)
+                computedData['ticker'] = stock
+                self.add_stock_to_tree(computedData, self.passesThresholds(computedData))
+        self.status_label.config(text="Query Complete", foreground="green")
 
 
     def fetch_earnings_data(self, date: str) -> List[str]:
