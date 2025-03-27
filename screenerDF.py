@@ -1,111 +1,45 @@
 import json
 from typing import List
 from bs4 import BeautifulSoup
-import tkinter as tk
-from tkinter import ttk
-from tkcalendar import DateEntry
 import requests
 import pandas as pd
 import yfinance as yf
 from datetime import datetime, timedelta
 import numpy as np
 from scipy.interpolate import interp1d
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+
 
 class SimpleEarningsApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Earnings Scanner")
-        self.df = pd.read_csv('NasdaqAndNYSETradedStocks.csv')
-
-        frame = ttk.Frame(self.root, padding=10)
-        frame.pack(fill="x", padx=10, pady=10)
-
-        ttk.Label(frame, text="Earnings Date:").pack(side="left", padx=(0, 5))
-        self.date_entry = DateEntry(frame, width=12, date_pattern='yyyy-MM-dd')
-        self.date_entry.pack(side="left", padx=(0, 5))
-
-        scan_btn = ttk.Button(frame, text="Scan Earnings", command=self.on_scan_earnings)
-        scan_btn.pack(side="left")
-
-        result_frame = ttk.Frame(self.root, padding=10)
-        result_frame.pack(fill="both", expand=True, padx=10, pady=10)
-
-        self.tree = ttk.Treeview(result_frame, columns=("Ticker", "Avg Volume", "IV30/RV30", "TS Slope", "Expected Move"), show="headings")
-        self.tree.heading("Ticker", text="Ticker")
-        self.tree.heading("Avg Volume", text="Avg Volume")
-        self.tree.heading("IV30/RV30", text="IV30/RV30")
-        self.tree.heading("TS Slope", text="TS Slope")
-        self.tree.heading("Expected Move", text="Expected Move")
-        self.tree.pack(fill="both", expand=True)
-
-        self.status_label = ttk.Label(self.root, text="Query Complete", foreground="green")
-        self.status_label.pack(side="bottom", fill="x", padx=10, pady=10)
-
-        threshold_frame = ttk.Frame(self.root, padding=10)
-        threshold_frame.pack(fill="x", padx=10, pady=10)
-
-        ttk.Label(threshold_frame, text="Avg Volume Threshold:").pack(side="left", padx=(0, 5))
-        self.avg_volume_entry = ttk.Entry(threshold_frame, width=10)
-        self.avg_volume_entry.insert(0, '1500000')
-        self.avg_volume_entry.pack(side="left", padx=(0, 5))
-
-        ttk.Label(threshold_frame, text="IV30/RV30 Threshold:").pack(side="left", padx=(0, 5))
-        self.iv30_rv30_entry = ttk.Entry(threshold_frame, width=10)
-        self.iv30_rv30_entry.insert(0, '1.25')
-        self.iv30_rv30_entry.pack(side="left", padx=(0, 5))
-
-        ttk.Label(threshold_frame, text="TS Slope Threshold:").pack(side="left", padx=(0, 5))
-        self.ts_slope_entry = ttk.Entry(threshold_frame, width=10)
-        self.ts_slope_entry.insert(0, '-0.00406')
-        self.ts_slope_entry.pack(side="left", padx=(0, 5))
-
-    def add_stock_to_tree(self, stock_info, passes_threshold):
-        tag = "green" if passes_threshold else "red"
-        self.tree.insert("", "end", values=(
-            stock_info['ticker'],
-            f"{stock_info['avg_volume']:,}",
-            f"{stock_info['iv30_rv30']:.2f}",
-            f"{stock_info['ts_slope_0_45']:.5f}",
-            f"{stock_info['expected_move']}"
-        ), tags=(tag,))
-        
-        self.tree.tag_configure("green", background="lightgreen")
-        self.tree.tag_configure("red", background="lightcoral")
-
-
-    def on_scan_earnings(self):
-        selected_date = self.date_entry.get()
-        self.status_label.config(text="Scanning Earnings", foreground="red")
-        self.root.update()
-        self.scan_earnings_callback(selected_date)
+    def __init__(self, date_str, volume, iv30_rv30, tss):
+        self.avg_volume_threshold = volume
+        self.iv30_rv30_threshold = iv30_rv30
+        self.ts_slope_threshold = tss
+        self.inputDF = pd.read_csv('NasdaqAndNYSETradedStocks.csv')
+        self.outputDF = pd.DataFrame(columns=["Ticker", "Avg Volume", "IV30/RV30", "TS Slope", "Expected Move"])
+        self.scan_earnings_callback(date_str)
 
     def tradedOnNYSEOrNasdaq(self, stock):
-        if stock in self.df['Ticker'].values:
-            return True
-        return False
+        return stock in self.inputDF['Ticker'].values
 
     def passesThresholds(self, stockInformation):
-        avg_volume_threshold = float(self.avg_volume_entry.get())
-        iv30_rv30_threshold = float(self.iv30_rv30_entry.get())
-        ts_slope_threshold = float(self.ts_slope_entry.get())
-
-        return (stockInformation['avg_volume'] >= avg_volume_threshold) and (stockInformation['iv30_rv30'] >= iv30_rv30_threshold) and (stockInformation['ts_slope_0_45'] <= ts_slope_threshold)
+        return (stockInformation['avg_volume'] >= self.avg_volume_threshold) and (stockInformation['iv30_rv30'] >= self.iv30_rv30_threshold) and (stockInformation['ts_slope_0_45'] <= self.ts_slope_threshold)
 
     def scan_earnings_callback(self, date_str):
-        print(f"Scan Earnings triggered for date: {date_str}")
         allStocksWithEarnings = self.fetch_earnings_data(date_str)
         filteredStocks = []
         for stock in allStocksWithEarnings:
             if(self.tradedOnNYSEOrNasdaq(stock)):
                 filteredStocks.append(stock)
-                self.tree.delete(*self.tree.get_children())
+        results = []
         for stock in filteredStocks:
             computedData = self.compute_recommendation(stock)
             if isinstance(computedData, dict):
                 computedData['ticker'] = stock
-                self.add_stock_to_tree(computedData, self.passesThresholds(computedData))
-        self.status_label.config(text="Query Complete", foreground="green")
-
+                if self.passesThresholds(computedData):
+                   results.append({"Ticker": computedData['ticker'], "Avg Volume": computedData['avg_volume'], "IV30/RV30": computedData['iv30_rv30'], "TS Slope": computedData['ts_slope_0_45'], "Expected Move": computedData['expected_move']})
+        self.outputDF = pd.DataFrame(results)
 
     def fetch_earnings_data(self, date: str) -> List[str]:
         url = "https://www.investing.com/earnings-calendar/Service/getCalendarFilteredData"
@@ -336,8 +270,10 @@ class SimpleEarningsApp:
             raise Exception(f'Error occured processing')
             
 def main():
-    root = tk.Tk()
-    app = SimpleEarningsApp(root)
-    root.mainloop()
+    desiredVolumeThreshold = float(input("Desired Avergage Volume Threshold: "))
+    desiredIVRVThreshold = float(input("Desired IV30/RV30 Ration Threshold: "))
+    desiredTSSThreshold = float(input("Desired Term Slope Threshold: "))
+    app = SimpleEarningsApp("2025-03-27", desiredVolumeThreshold, desiredIVRVThreshold, desiredTSSThreshold)
+    print(app.outputDF)
 
 main()
