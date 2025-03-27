@@ -1,8 +1,8 @@
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/volatility-screener.git
-cd volatility-screener
+git clone https://github.com/NeilDaniel07/volatilitytrading.git
+cd volatilitytrading
 pip install -r requirements.txt
 ```
 
