@@ -26,22 +26,40 @@ class SimpleEarningsApp:
     def passesThresholds(self, stockInformation):
         return (stockInformation['avg_volume'] >= self.avg_volume_threshold) and (stockInformation['iv30_rv30'] >= self.iv30_rv30_threshold) and (stockInformation['ts_slope_0_45'] <= self.ts_slope_threshold)
 
-    def scan_earnings_callback(self, date_str):
-        allStocksWithEarnings = self.fetch_earnings_data(date_str)
-        filteredStocks = []
-        for stock in allStocksWithEarnings:
-            if(self.tradedOnNYSEOrNasdaq(stock)):
-                filteredStocks.append(stock)
-        results = []
-        for stock in filteredStocks:
-            computedData = self.compute_recommendation(stock)
-            if isinstance(computedData, dict):
-                computedData['ticker'] = stock
-                if self.passesThresholds(computedData):
-                   results.append({"Ticker": computedData['ticker'], "Avg Volume": computedData['avg_volume'], "IV30/RV30": computedData['iv30_rv30'], "TS Slope": computedData['ts_slope_0_45'], "Expected Move": computedData['expected_move']})
-        self.outputDF = pd.DataFrame(results)
+    def scan_earnings_callback(self, date_str: str):
+        day0 = datetime.strptime(date_str, "%Y-%m-%d").date()
+        day1 = day0 + timedelta(days=1)
 
-    def fetch_earnings_data(self, date: str) -> List[str]:
+        day0_map = self.fetch_earnings_data(day0.strftime("%Y-%m-%d"))
+        day1_map = self.fetch_earnings_data(day1.strftime("%Y-%m-%d"))
+
+        post_mkt = [t for t, tm in day0_map.items() if tm == "Post Market"]
+        pre_mkt  = [t for t, tm in day1_map.items() if tm == "Pre Market"]
+
+        overnight_tickers = list({*post_mkt, *pre_mkt})
+
+        self._earnings_time = {**{t: "Post Market" for t in post_mkt}, **{t: "Pre Market"  for t in pre_mkt}}
+
+        universe = [t for t in overnight_tickers if self.tradedOnNYSEOrNasdaq(t)]
+
+        results = []
+        for tk in universe:
+            data = self.compute_recommendation(tk)
+            if isinstance(data, dict):
+                data['ticker'] = tk
+                if self.passesThresholds(data):
+                    results.append({
+                        "Ticker": tk,
+                        "Avg Volume": data['avg_volume'],
+                        "IV30/RV30": data['iv30_rv30'],
+                        "TS Slope": data['ts_slope_0_45'],
+                        "Expected Move": data['expected_move'],
+                        "Earnings Time": self._earnings_time.get(tk, "Unknown")
+                    })
+
+        self.outputDF = pd.DataFrame(results, columns=["Ticker", "Avg Volume", "IV30/RV30","TS Slope", "Expected Move", "Earnings Time"])
+
+    def fetch_earnings_data(self, date: str) -> dict[str, str]:
         url = "https://www.investing.com/earnings-calendar/Service/getCalendarFilteredData"
         headers = {
             'User-Agent': 'Mozilla/5.0',
@@ -50,7 +68,7 @@ class SimpleEarningsApp:
             'Referer': 'https://www.investing.com/earnings-calendar/'
         }
         payload = {
-            'country[]': '5',  # Country code for the United States
+            'country[]': '5',          # United States
             'dateFrom': date,
             'dateTo': date,
             'currentTab': 'custom',
@@ -58,35 +76,42 @@ class SimpleEarningsApp:
         }
 
         try:
-            response = requests.post(url, headers=headers, data=payload)
-            response.raise_for_status()
+            resp = requests.post(url, headers=headers, data=payload, timeout=15)
+            resp.raise_for_status()
 
-            data = response.json()
+            data = resp.json()
             soup = BeautifulSoup(data['data'], 'html.parser')
             rows = soup.find_all('tr')
 
-            earnings_stocks = []
+            earnings = {}
 
             for row in rows:
-                company_name_span = row.find('span', class_='earnCalCompanyName')
-                if not company_name_span:
+                if not row.find('span', class_='earnCalCompanyName'):
                     continue
 
                 try:
                     ticker = row.find('a', class_='bold').text.strip().upper()
-                    earnings_stocks.append(ticker)
+
+                    tt_span = row.find('span', class_='genToolTip')
+                    tooltip = tt_span.get('data-tooltip', '').strip() if tt_span else ''
+
+                    if tooltip == 'Before market open':
+                        etime = 'Pre Market'
+                    elif tooltip == 'After market close':
+                        etime = 'Post Market'
+                    else:
+                        etime = 'During Market'
+
+                    earnings[ticker] = etime
                 except Exception as e:
-                    print(f"Error parsing row: {e}")
+                    print(f"[fetch_earnings_data] Row parse error: {e}")
                     continue
 
-            return earnings_stocks
+            return earnings
 
-        except requests.RequestException as e:
-            print(f"HTTP Request failed: {e}")
-            return []
-        except json.JSONDecodeError as e:
-            print(f"JSON decoding failed: {e}")
-            return []
+        except (requests.RequestException, json.JSONDecodeError) as e:
+            print(f"[fetch_earnings_data] HTTP / JSON error: {e}")
+            return {}
     
     def filter_dates(self, dates):
         today = datetime.today().date()
@@ -267,13 +292,20 @@ class SimpleEarningsApp:
 
             return {'avg_volume': avg_volume, 'iv30_rv30': iv30_rv30, 'ts_slope_0_45': ts_slope_0_45, 'expected_move': expected_move} #Check that they are in our desired range (see video)
         except Exception as e:
-            raise Exception(f'Error occured processing')
+            print(f"[{ticker}] -- {e}")
+            return f"Error: {e}"
+
             
 def main():
-    desiredVolumeThreshold = float(input("Desired Avergage Volume Threshold: "))
-    desiredIVRVThreshold = float(input("Desired IV30/RV30 Ration Threshold: "))
-    desiredTSSThreshold = float(input("Desired Term Slope Threshold: "))
-    app = SimpleEarningsApp("2025-03-27", desiredVolumeThreshold, desiredIVRVThreshold, desiredTSSThreshold)
-    print(app.outputDF)
+    desiredVolumeThreshold = float(input("Desired Average Volume Threshold: "))
+    desiredIVRVThreshold = float(input("Desired IV30/RV30 Ratio Threshold: "))
+    desiredTSSThreshold  = float(input("Desired Term-Slope Threshold: "))
+
+    scan_date = "2025-05-13"
+
+    app = SimpleEarningsApp(scan_date, desiredVolumeThreshold, desiredIVRVThreshold, desiredTSSThreshold)
+
+    out_fname = "EarningsScanning.csv"
+    app.outputDF.to_csv(out_fname, index=False)
 
 main()

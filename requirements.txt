@@ -71,4 +71,5 @@ urllib3==2.2.1
 Werkzeug==3.0.3
 wheel==0.43.0
 wrapt==1.14.0
+yfinance==0.2.61
 zipp==3.18.1
