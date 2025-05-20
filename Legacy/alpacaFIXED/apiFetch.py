@@ -3,8 +3,6 @@ import requests
 import time
 from datetime import datetime, timedelta
 import config
-from alpaca.trading.client import TradingClient
-from alpaca.data.live import StockDataStream
 from typing import Optional, Tuple
 import json
 import calendar
@@ -232,34 +230,16 @@ class AlpacaAPIManager:
         return self.sortedDict
 
 def main():
-    response = requests.get(config.MARKET_URL+"/account", headers=config.header)
     
     obj: AlpacaAPIManager = AlpacaAPIManager()
     df = pd.read_csv("./alpacaFIXED/data.csv")
-
-    #df["Ticker"][3923] = "NA"
-    
     print(df.shape[0])
-
-    # Process each ticker, skipping any problematic entries
-    """
-    for i in range(df.shape[0]):
-        ticker = df["Ticker"][i]
-        if ticker == "NA":
-            continue  # Skip invalid tickers
-        
-        result = obj.request_info(ticker)
-        if result is None:
-            print(f"Skipped ticker {ticker} due to persistent errors")"
-    """
     retrivedDict = {}
     for i in range(df[:5].shape[0]):
         ticker = df["Ticker"][i]
         retrivedDict[ticker] = obj.request_info(ticker)
         obj.howmanyshitterscaniget(retrivedDict[ticker][3], retrivedDict[ticker][1], retrivedDict[ticker][2], ticker)
         time.sleep(2)
-
     print(json.dumps(obj.sortedDict,indent=2))
-    #print(json.dumps(retrivedDict, indent=2))
-if __name__ == "__main__":
-    main()
+
+main()

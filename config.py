@@ -1,5 +1,3 @@
-
-
 ALPACA_SECRET_KEY = '7TEJhUKXpQPJW9bjuN7WoMZqLPmfkx6i2Gqpa64U'
 ALPACA_KEY = 'PK94C6N1YEYXDPL30FAB'
 MARKET_URL = "https://paper-api.alpaca.markets/v2"

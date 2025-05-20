@@ -8,15 +8,14 @@ from datetime import datetime, timedelta
 import numpy as np
 from scipy.interpolate import interp1d
 import warnings
-warnings.filterwarnings("ignore", category=RuntimeWarning)
+warnings.filterwarnings("ignore")
 
-
-class SimpleEarningsApp:
+class Screener:
     def __init__(self, date_str, volume, iv30_rv30, tss):
         self.avg_volume_threshold = volume
         self.iv30_rv30_threshold = iv30_rv30
         self.ts_slope_threshold = tss
-        self.inputDF = pd.read_csv('NasdaqAndNYSETradedStocks.csv')
+        self.inputDF = pd.read_csv('Legacy/NasdaqAndNYSETradedStocks.csv')
         self.outputDF = pd.DataFrame(columns=["Ticker", "Avg Volume", "IV30/RV30", "TS Slope", "Expected Move"])
         self.scan_earnings_callback(date_str)
 
@@ -297,13 +296,13 @@ class SimpleEarningsApp:
 
             
 def main():
-    desiredVolumeThreshold = float(input("Desired Average Volume Threshold: "))
-    desiredIVRVThreshold = float(input("Desired IV30/RV30 Ratio Threshold: "))
-    desiredTSSThreshold  = float(input("Desired Term-Slope Threshold: "))
+    desiredVolumeThreshold = 1500000
+    desiredIVRVThreshold = 1.25
+    desiredTSSThreshold  = -0.00406
 
     scan_date = "2025-05-13"
 
-    app = SimpleEarningsApp(scan_date, desiredVolumeThreshold, desiredIVRVThreshold, desiredTSSThreshold)
+    app = Screener(scan_date, desiredVolumeThreshold, desiredIVRVThreshold, desiredTSSThreshold)
 
     out_fname = "EarningsScanning.csv"
     app.outputDF.to_csv(out_fname, index=False)
