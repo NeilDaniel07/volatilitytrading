@@ -87,7 +87,7 @@ class TradingDataCollector:
             return None
         return data["trade"]["p"]
 
-    def get_expiry_dates(self): #Navin: Please review this. We're currently operating under the assumption that every stock's options close on Friday.
+    def get_expiry_dates(self):
         today = self.date.date()
         days_ahead = (4 - today.weekday() + 7) % 7
         front_dt = today
