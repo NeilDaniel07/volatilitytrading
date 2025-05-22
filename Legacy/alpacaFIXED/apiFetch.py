@@ -3,6 +3,8 @@ import requests
 import time
 from datetime import datetime, timedelta
 import config
+from alpaca.trading.client import TradingClient
+from alpaca.data.live import StockDataStream
 from typing import Optional, Tuple
 import json
 import calendar
@@ -13,7 +15,7 @@ class AlpacaAPIManager:
         self.rate_limit_delay = 0.1  # Adjust based on Alpaca's rate limits
         self.max_retries = 10  # Increased max retries for rate limit handling
         self.max_wait_time = 60  # Maximum wait time between retries in seconds
-        self.sortedDict = {}
+        self.sortedDf = pd.DataFrame(columns=["Ticker", "Quantity", "Front Option", "Back Option", "Avg Bid/Ask"])
     def find_next_third_friday(self):
         # Get today's date
         today = datetime.now()
@@ -222,24 +224,43 @@ class AlpacaAPIManager:
         quantity = int((int(acctBalance)*.2)/(total_cost*100))
         print(f"this many to buy: {quantity}")
 
-        self.sortedDict[ticker] = {
-                                    "q": quantity,
-                                    "frontopt": frontopt,
-                                    "backopt": backopt,
-                                  }
-        return self.sortedDict
+        avg_bid_ask_spread = (float(bid_ask_spread_front)+float(bid_ask_spread_back))/2
+        df_row = {"Ticker": ticker, "Quantity": quantity, "Front Option": frontopt, "Back Option": backopt, "Avg Bid/Ask": avg_bid_ask_spread}
+        self.sortedDf.loc[len(self.sortedDf)] = df_row
+        return self.sortedDf
 
 def main():
+    response = requests.get(config.MARKET_URL+"/account", headers=config.header)
     
     obj: AlpacaAPIManager = AlpacaAPIManager()
+    """
     df = pd.read_csv("./alpacaFIXED/data.csv")
+    """
+    df = pd.read_csv("./alpacaFIXED/sampleIntegrationDF.csv")
+
+    #df["Ticker"][3923] = "NA"
+    
     print(df.shape[0])
+
+    # Process each ticker, skipping any problematic entries
+    """
+    for i in range(df.shape[0]):
+        ticker = df["Ticker"][i]
+        if ticker == "NA":
+            continue  # Skip invalid tickers
+        
+        result = obj.request_info(ticker)
+        if result is None:
+            print(f"Skipped ticker {ticker} due to persistent errors")"
+    """
     retrivedDict = {}
     for i in range(df[:5].shape[0]):
         ticker = df["Ticker"][i]
         retrivedDict[ticker] = obj.request_info(ticker)
         obj.howmanyshitterscaniget(retrivedDict[ticker][3], retrivedDict[ticker][1], retrivedDict[ticker][2], ticker)
         time.sleep(2)
-    print(json.dumps(obj.sortedDict,indent=2))
-
-main()
+    print(obj.sortedDf)
+    obj.sortedDf = obj.sortedDf.sort_values(by="Avg Bid/Ask")
+    print(obj.sortedDf)
+if __name__ == "__main__":
+    main()
