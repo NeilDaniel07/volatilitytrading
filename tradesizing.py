@@ -6,7 +6,7 @@ import requests
 import config as config
 
 class TradingDataCollector:
-    BASE_STOCK   = "https://data.alpaca.markets/v2/stocks"
+    BASE_STOCK = "https://data.alpaca.markets/v2/stocks"
     BASE_OPTIONS = "https://data.alpaca.markets/v1beta1/options"
 
     def __init__(self, screener_df, date):
@@ -40,7 +40,7 @@ class TradingDataCollector:
         add_df = pd.DataFrame(rows)
         merged = self.df.merge(add_df, how="left", left_on="Ticker", right_on="ticker").drop(columns=["ticker"])
 
-        required = ["stock_price", "front_expiry", "back_expiry", "strike", "front_symbol", "back_symbol"]
+        required = ["Stock Price", "Front Expiry", "Back Expiry", "Strike", "Front Symbol", "Back Symbol"]
         merged = merged.dropna(subset=required)
 
         self.df = merged
@@ -69,12 +69,12 @@ class TradingDataCollector:
 
         return {
             "ticker": ticker,
-            "stock_price": price,
-            "front_expiry": front_exp,
-            "back_expiry": back_exp,
-            "strike": strike,
-            "front_symbol": front_sym,
-            "back_symbol": back_sym,
+            "Stock Price": price,
+            "Front Expiry": front_exp,
+            "Back Expiry": back_exp,
+            "Strike": strike,
+            "Front Symbol": front_sym,
+            "Back Symbol": back_sym,
         }
 
     def latest_trade_price(self, ticker):
