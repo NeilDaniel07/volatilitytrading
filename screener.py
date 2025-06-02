@@ -67,7 +67,7 @@ class Screener:
             'Referer': 'https://www.investing.com/earnings-calendar/'
         }
         payload = {
-            'country[]': '5',          # United States
+            'country[]': '5', # United States
             'dateFrom': date,
             'dateTo': date,
             'currentTab': 'custom',

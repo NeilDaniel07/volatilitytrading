@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Tuple, Optional
 import pandas as pd
 import requests
-import config
+import config as config
 
 class TradingDataCollector:
     BASE_STOCK   = "https://data.alpaca.markets/v2/stocks"
@@ -45,20 +45,17 @@ class TradingDataCollector:
 
         self.df = merged
         return self.df
-
+    
     def collect_ticker_information(self, ticker):
         price = self.latest_trade_price(ticker)
         
         if price is None:
             return None
 
-        front_exp, back_exp = self.get_expiry_dates()
+        front_exp, back_exp, front_options, back_options = self.get_expiry_dates(ticker, price)
        
         if not front_exp or not back_exp:
             return None
-
-        front_options = self.gather_options(ticker, front_exp, price)
-        back_options  = self.gather_options(ticker, back_exp,  price)
 
         if not front_options or not back_options:
             return None
@@ -87,19 +84,42 @@ class TradingDataCollector:
             return None
         return data["trade"]["p"]
 
-    def get_expiry_dates(self):
+    def get_expiry_dates(self, ticker, price):
         today = self.date.date()
-        days_ahead = (4 - today.weekday() + 7) % 7
-        front_dt = today
-        if days_ahead != 0:
-            front_dt += timedelta(days=days_ahead)
+        initialOffset = (4 - today.weekday() + 7) % 7
+        firstFriday = today + timedelta(days=initialOffset)
 
-        back_dt = front_dt + timedelta(days=28)
-        back_days_ahead = (4 - back_dt.weekday() + 7) % 7
-        if back_days_ahead != 0:
-            back_dt += timedelta(days=back_days_ahead)
+        frontDate = None
+        frontOptions = None
 
-        return front_dt.strftime("%Y-%m-%d"), back_dt.strftime("%Y-%m-%d") #Returned as a tuple
+        for i in range(5):
+            candidate = firstFriday + timedelta(weeks=i)
+            candStr = candidate.strftime("%Y-%m-%d")
+            options = self.gather_options(ticker, candStr, price)
+            if options:
+                frontDate, frontOptions = candidate, options
+                break
+
+        if frontDate is None:
+            return None, None, None, None
+        
+        backDate = None
+        backOptions = None
+
+        offsets = [28, 21, 35, 14, 42, 7, 49]
+
+        for offset in offsets:
+            candidate = frontDate + timedelta(days=offset)
+            candStr = candidate.strftime("%Y-%m-%d")
+            options = self.gather_options(ticker, candStr, price)
+            if options:
+                backDate, backOptions = candidate, options
+                break
+
+        if backDate is None:
+            return None, None, None, None
+
+        return (frontDate.strftime("%Y-%m-%d"), backDate.strftime("%Y-%m-%d"), frontOptions, backOptions)
 
     def gather_options(self, ticker, expiry, price):
         lo = max(price - self.wiggle, 0)
