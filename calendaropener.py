@@ -1,9 +1,6 @@
-import json, time, requests
-from datetime import datetime
-from pathlib import Path
+import time, requests
 from typing import List, Dict
 import pandas as pd
-from dateutil.tz import gettz
 import paperconfig 
 
 class CalendarOpener:
@@ -23,7 +20,8 @@ class CalendarOpener:
         self.orig_capital = float(account["options_buying_power"])
         self.capital_left = self.orig_capital
 
-        #Define an ouput CSV file
+        self.openPositions: List[Dict] = []
+
     
     def run(self):
         for _, row in self.df.iterrows():
@@ -31,11 +29,13 @@ class CalendarOpener:
                 break
 
             self.execute_trade(row)
-            time.sleep(30)
             time.sleep(self.rate_delay)
         
-        #Save the resultant CSV file
         print(f"\nRemaining capital: ${self.capital_left:,.2f}")
+            
+        toReturn = pd.DataFrame(self.openPositions, columns=["Order ID", "Quantity", "Front Symbol", "Back Symbol", "Limit Price", "Filled"])
+        return toReturn
+
 
     def execute_trade(self, row):
         ticker = row["Ticker"]
@@ -110,10 +110,20 @@ class CalendarOpener:
                     else:
                         debit -= price * qty * 100
             else:
-                print("Order Not Yet Fulfilled. Defaulting To Estimated Debit.")
-                debit = finalNumberContracts * debitPerContract
+                print("Order Not Yet Fulfilled. Defaulting To Maximum Limit Debit.")
+                debit = finalNumberContracts * float(order["limit_price"]) * 100
 
             self.capital_left -= debit
+            
+            self.openPositions.append({
+                "Order ID": order_id,
+                "Quantity": finalNumberContracts,
+                "Front Symbol": frontSymbol,
+                "Back Symbol": backSymbol,
+                "Limit Price": float(order["limit_price"]),
+                "Filled": "Yes" if filled else "No"
+            })
+
             print(f"{ticker} Position Opened of Amount ${debit:,.2f}")
 
         except Exception as e:
@@ -174,6 +184,7 @@ class CalendarOpener:
 def main():
     df = pd.read_csv("alpaca_snapshot.csv")
     opener = CalendarOpener(df)
-    opener.run()
+    orderDF = opener.run()
+    orderDF.to_csv("PlacedOrders.csv", index=False)
 
 main()
