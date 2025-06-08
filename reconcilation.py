@@ -1,10 +1,20 @@
 import time, requests
-from typing import List, Dict, Optional
+from typing import List, Dict
 import pandas as pd
 import paperconfig
 
 class CalendarOpenReconciler:
     PAPER_DOMAIN = "https://paper-api.alpaca.markets"
+    OUTPUT_COLS = [
+        "Order ID",
+        "Front Qty",
+        "Back Qty",
+        "Front Symbol",
+        "Back Symbol",
+        "Limit Price",
+        "Filled"
+    ]
+
 
     def __init__(self, input_df):
         self.df = input_df
@@ -22,12 +32,23 @@ class CalendarOpenReconciler:
             
             time.sleep(self.rate_delay)
 
-        toReturn = pd.DataFrame(self.cleanedRows, columns=["Order ID", "Quantity", "Front Symbol", "Back Symbol", "Limit Price", "Filled"])
+        toReturn = pd.DataFrame(self.cleanedRows, columns=self.OUTPUT_COLS)
+
         return toReturn
 
     def process_row(self, row):
         if row["Filled"] == "Yes":
-            return row.to_dict()
+            qty = int(row["Quantity"])
+            row_dict = {
+                "Order ID":     row["Order ID"],
+                "Front Qty":    qty,
+                "Back Qty":     qty,
+                "Front Symbol": row["Front Symbol"],
+                "Back Symbol":  row["Back Symbol"],
+                "Limit Price":  row["Limit Price"],
+                "Filled":       "Yes"
+            }
+            return row_dict
 
         order_id = row["Order ID"]
         orderData = self.get_order(order_id)
@@ -38,26 +59,48 @@ class CalendarOpenReconciler:
         status = orderData["status"]
 
         if status == "filled":
-            row["Filled"] = "Yes"
-            return row.to_dict()
+            qty = int(row["Quantity"])
+            return {
+                "Order ID":     row["Order ID"],
+                "Front Qty":    qty,
+                "Back Qty":     qty,
+                "Front Symbol": row["Front Symbol"],
+                "Back Symbol":  row["Back Symbol"],
+                "Limit Price":  row["Limit Price"],
+                "Filled":       "Yes"
+            }
 
         if status in ("canceled", "expired"):
             return None
 
         if status == "partially_filled":
             self.cancel_order(order_id)
+            time.sleep(2) #Allow time for the order information to update
             updatedOrderData = self.get_order(order_id)
             if updatedOrderData is None:
                 return None
 
-            fill_counts = [int(leg["filled_qty"]) for leg in updatedOrderData["legs"]]
-            qty_filled  = min(fill_counts)
-            if qty_filled == 0:
-                print(f"{order_id} Completely Unfilled.")
+            front_fill = 0
+            back_fill = 0
+            for leg in updatedOrderData["legs"]:
+                if leg["symbol"] == row["Front Symbol"]:
+                    front_fill = int(leg["filled_qty"])
+                elif leg["symbol"] == row["Back Symbol"]:
+                    back_fill = int(leg["filled_qty"])
+
+            if front_fill == 0 and back_fill == 0:
+                print(f"{order_id} Completely Unfilled")
                 return None
 
-            row["Quantity"] = qty_filled
-            return row.to_dict()
+            return {
+                "Order ID":     row["Order ID"],
+                "Front Qty":    front_fill,
+                "Back Qty":     back_fill,
+                "Front Symbol": row["Front Symbol"],
+                "Back Symbol":  row["Back Symbol"],
+                "Limit Price":  row["Limit Price"],
+                "Filled":       "Yes"
+            }
 
         try:
             self.cancel_order(order_id)
@@ -90,8 +133,8 @@ class CalendarOpenReconciler:
                 r.raise_for_status()
 
                 if not r.content or r.status_code == 204:
-                    return {}
-            
+                    return {} if method == "DELETE" else None
+
                 return r.json()
 
             except requests.RequestException as e:
