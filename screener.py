@@ -300,7 +300,7 @@ def main():
     desiredIVRVThreshold = 1.25
     desiredTSSThreshold  = -0.00406
 
-    scan_date = "2025-05-13"
+    scan_date = "2025-06-05"
 
     app = Screener(scan_date, desiredVolumeThreshold, desiredIVRVThreshold, desiredTSSThreshold)
 

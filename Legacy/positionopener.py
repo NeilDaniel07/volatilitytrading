@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 import config
 
-class LongCalendarTrader:
+class PositionOpener:
     QUOTES = "https://data.alpaca.markets/v1beta1/options/quotes/latest?symbols={sym}&feed=indicative"
 
     def __init__(self, df, capital):
@@ -32,6 +32,7 @@ class LongCalendarTrader:
 
         print(f"\nRemaining capital: ${self.capital_left:,.2f}")
 
+    #UPDATE IT TO ACTUALLY SEND THE TRADE ORDER TO ALPACA AND 
     def execute_trade(self, row):
         ticker = row["Ticker"]
         frontSymbol = row["Front Symbol"]
@@ -89,7 +90,7 @@ class LongCalendarTrader:
 
 def main():
     enriched = pd.read_csv("alpaca_snapshot.csv")
-    trader = LongCalendarTrader(enriched, capital=10000)
+    trader = PositionOpener(enriched, capital=10000)
     trader.run()
 
 main()

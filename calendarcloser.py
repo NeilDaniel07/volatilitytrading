@@ -1,0 +1,1 @@
+#File to close the open positions from the previous stage

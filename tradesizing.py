@@ -106,7 +106,7 @@ class TradingDataCollector:
         backDate = None
         backOptions = None
 
-        offsets = [28, 21, 35, 14, 42, 7, 49]
+        offsets = [28, 27] #Optimize later
 
         for offset in offsets:
             candidate = frontDate + timedelta(days=offset)
