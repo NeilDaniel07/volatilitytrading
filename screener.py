@@ -15,7 +15,7 @@ class Screener:
         self.avg_volume_threshold = volume
         self.iv30_rv30_threshold = iv30_rv30
         self.ts_slope_threshold = tss
-        self.inputDF = pd.read_csv('Legacy/NasdaqAndNYSETradedStocks.csv')
+        self.inputDF = pd.read_csv('NasdaqAndNYSETradedStocks.csv')
         self.outputDF = pd.DataFrame(columns=["Ticker", "Avg Volume", "IV30/RV30", "TS Slope", "Expected Move"])
         self.scan_earnings_callback(date_str)
 
@@ -300,9 +300,9 @@ def main():
     desiredIVRVThreshold = 1.25
     desiredTSSThreshold  = -0.00406
 
-    scan_date = "2025-06-05"
+    scan_date = "2025-07-01"
 
-    app = Screener(scan_date, desiredVolumeThreshold, desiredIVRVThreshold, desiredTSSThreshold)
+    app = Screener(scan_date, desiredIVRVThreshold, desiredIVRVThreshold, desiredTSSThreshold)
 
     out_fname = "EarningsScanning.csv"
     app.outputDF.to_csv(out_fname, index=False)

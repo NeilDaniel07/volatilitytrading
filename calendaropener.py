@@ -66,7 +66,7 @@ class CalendarOpener:
             "order_class": "mleg",
             "qty": str(finalNumberContracts),
             "type": "limit",
-            "limit_price" : f"{debitPerContract/100:.2f}",
+            "limit_price" : f"{(debitPerContract/100 + 0.01):.2f}",
             "time_in_force": "day",
             "legs": [
                 {
