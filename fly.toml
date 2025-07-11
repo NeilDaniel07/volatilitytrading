@@ -1,31 +1,16 @@
-# fly.toml app configuration file generated for earnings-bot-empty-grass-2395 on 2025-07-10T23:08:40-04:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
+app = "earnings-bot-empty-grass-2395"
+primary_region = "iad"
 
-app = 'earnings-bot-empty-grass-2395'
-primary_region = 'iad'
 auto_stop_machines = "false"
 
 [build]
   strategy = "docker"
 
-[env]
-  PORT = '8080'
-
-[http_service]
-  internal_port = 8080
-  force_https = true
-  auto_stop_machines = 'stop'
-  auto_start_machines = true
-  min_machines_running = 0
-  processes = ['app']
-
 [[vm]]
-  memory = '1gb'
-  cpu_kind = 'shared'
+  cpu_kind = "shared"
   cpus = 1
+  memory = "1gb"
 
 [mounts]
-  source="botdata"
-  destination="/data"
+  source = "botdata"
+  destination = "/data"
