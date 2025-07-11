@@ -295,16 +295,16 @@ class Screener:
             return f"Error: {e}"
 
             
-def main():
-    desiredVolumeThreshold = 1500000
-    desiredIVRVThreshold = 1.25
-    desiredTSSThreshold  = -0.00406
+# def main():
+#     desiredVolumeThreshold = 1500000
+#     desiredIVRVThreshold = 1.25
+#     desiredTSSThreshold  = -0.00406
 
-    scan_date = "2025-07-01"
+#     scan_date = "2025-07-01"
 
-    app = Screener(scan_date, desiredIVRVThreshold, desiredIVRVThreshold, desiredTSSThreshold)
+#     app = Screener(scan_date, desiredIVRVThreshold, desiredIVRVThreshold, desiredTSSThreshold)
 
-    out_fname = "EarningsScanning.csv"
-    app.outputDF.to_csv(out_fname, index=False)
+#     out_fname = "EarningsScanning.csv"
+#     app.outputDF.to_csv(out_fname, index=False)
 
-main()
+# main()

@@ -24,15 +24,19 @@ class CalendarCloser:
         frontQuantity = int(row["Front Qty"])
         backQuantity = int(row["Back Qty"])
 
-        if frontQuantity == backQuantity and frontQuantity > 0:
-            self.close_spread(front, back, frontQuantity)
-            return
+        minQuantity = min(frontQuantity, backQuantity)
 
-        if frontQuantity > 0:
-            self.close_single_leg(front, frontQuantity, "buy", "ap")
+        if minQuantity > 0:
+            self.close_spread(front, back, minQuantity)
+
+        frontExcess = frontQuantity - minQuantity
+        backExcess = backQuantity - minQuantity
+
+        if frontExcess > 0:
+            self.close_single_leg(front, frontExcess, "buy", "ap")
  
-        if backQuantity > 0:
-            self.close_single_leg(back, backQuantity, "sell", "bp") 
+        if backExcess > 0:
+            self.close_single_leg(back, backExcess, "sell", "bp") 
     
     def close_spread(self, front, back, quantity):
         frontQuote = self.get_quote_data(front, "ap")
@@ -163,9 +167,9 @@ class CalendarCloser:
 
         return None
 
-def main():
-    rec_df = pd.read_csv("FilteredOrders.csv")
-    closer = CalendarCloser(rec_df)
-    closer.run()
+# def main():
+#     rec_df = pd.read_csv("FilteredOrders.csv")
+#     closer = CalendarCloser(rec_df)
+#     closer.run()
 
-main()
+# main()

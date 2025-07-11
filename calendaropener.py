@@ -181,10 +181,10 @@ class CalendarOpener:
 
         return None
     
-def main():
-    df = pd.read_csv("alpaca_snapshot.csv")
-    opener = CalendarOpener(df)
-    orderDF = opener.run()
-    orderDF.to_csv("PlacedOrders.csv", index=False)
+# def main():
+#     df = pd.read_csv("alpaca_snapshot.csv")
+#     opener = CalendarOpener(df)
+#     orderDF = opener.run()
+#     orderDF.to_csv("PlacedOrders.csv", index=False)
 
-main()
+# main()

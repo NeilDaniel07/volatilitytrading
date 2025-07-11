@@ -172,11 +172,11 @@ class TradingDataCollector:
 
         return None
 
-def main():
-    screener_df = pd.read_csv("EarningsScanning.csv")
-    snapshot = TradingDataCollector(screener_df, datetime.now())
-    enriched_df = snapshot.run()
-    enriched_df.to_csv("alpaca_snapshot.csv", index=False)
-    print(enriched_df.head())
+# def main():
+#     screener_df = pd.read_csv("EarningsScanning.csv")
+#     snapshot = TradingDataCollector(screener_df, datetime.now())
+#     enriched_df = snapshot.run()
+#     enriched_df.to_csv("alpaca_snapshot.csv", index=False)
+#     print(enriched_df.head())
 
-main()
+# main()
