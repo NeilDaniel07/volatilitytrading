@@ -1,9 +1,9 @@
 import time
-from datetime import datetime, timedelta
-from typing import List, Dict, Tuple, Optional
+from datetime import timedelta
+from typing import List, Dict
 import pandas as pd
 import requests
-import config as config
+import paperconfig as paperconfig
 
 class TradingDataCollector:
     BASE_STOCK = "https://data.alpaca.markets/v2/stocks"
@@ -19,7 +19,7 @@ class TradingDataCollector:
         self.max_retries = 8
         self.max_wait_time = 60
         self.wiggle = 10
-        self.hdr = config.header
+        self.hdr = paperconfig.header
 
     def run(self):
         rows: List[Dict] = []

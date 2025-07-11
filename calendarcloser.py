@@ -1,5 +1,4 @@
 import time, requests
-import pandas as pd
 import paperconfig
 
 class CalendarCloser:

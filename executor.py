@@ -6,6 +6,8 @@ from tradesizing import TradingDataCollector
 from calendaropener import CalendarOpener
 from reconciliation import CalendarOpenReconciler
 from calendarcloser import CalendarCloser
+from pathlib import Path
+import os
 
 EASTERN = pytz.timezone("US/Eastern")
 NYSE = mcal.get_calendar("XNYS")
@@ -14,10 +16,12 @@ VOL_THRESHOLD = 1500000
 IVRV_THRESHOLD = 1.25
 TS_SLOPE_THRESHOLD = -0.00406
 
-RAW_SCREENER_CSV = "EarningsScanning.csv"
-SIZEDTRADES_CSV = "SizedTrades.csv"
-PLACED_CSV = "PlacedOrders.csv"
-FILTERED_CSV = "FilteredOrders.csv"
+BASE_DIR = Path(os.getenv("BOT_DATA", ".")).resolve()
+
+RAW_SCREENER_CSV = BASE_DIR / "EarningsScanning.csv"
+SIZEDTRADES_CSV  = BASE_DIR / "SizedTrades.csv"
+PLACED_CSV = BASE_DIR / "PlacedOrders.csv"
+FILTERED_CSV = BASE_DIR / "FilteredOrders.csv"
 
 def is_market_day(d=None):
     if d is None:
