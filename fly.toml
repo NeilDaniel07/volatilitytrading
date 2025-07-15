@@ -11,6 +11,10 @@ auto_stop_machines = "false"
   cpus = 1
   memory = "1gb"
 
+[[services]]
+  auto_stop_machines = "off"
+  auto_start_machines = true
+
 [mounts]
   source = "botdata"
   destination = "/data"
