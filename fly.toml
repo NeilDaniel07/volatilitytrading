@@ -1,5 +1,5 @@
 app = "earnings-bot-empty-grass-2395"
-primary_region = "iad
+primary_region = "iad"
 
 [build]
   strategy = "docker"
