@@ -38,20 +38,16 @@ def job_closer():
     CalendarCloser(df).run()
     print("Closing Script Complete")
 
-def job_screener():
-    print("[3:30] - Screening Script Executing ...")
+def job_screener_and_sizer():
+    print("[3:30] - Screening and Sizing Scripts Executing ...")
     scan_date = dt.date.today().strftime("%Y-%m-%d")
     app = Screener(scan_date, VOL_THRESHOLD, IVRV_THRESHOLD, TS_SLOPE_THRESHOLD)
     app.outputDF.to_csv(RAW_SCREENER_CSV, index=False)
     print(f"Screener Produced {len(app.outputDF)} Rows")
-    schedule.run_pending()
-
-def job_trade_sizer():
-    print("[3:30] - Trade Sizing Script Executing ...")
     df = pd.read_csv(RAW_SCREENER_CSV)
     enriched = TradingDataCollector(df, dt.datetime.now()).run()
     enriched.to_csv(SIZEDTRADES_CSV, index=False)
-    print("Trade Sizing Script Completed")
+    print("Trade Screening and Sizing Scripts Completed")
 
 def job_opener():
     print("[3:40] - Position Opener Script Executing ...")
@@ -61,7 +57,7 @@ def job_opener():
     print(f"Opener Placed {len(orders_df)} Complex Orders")
 
 def job_reconciler():
-    print("[3:50] -  Reconcilation Script Executing ...")
+    print("[3:50] -  Reconciliation Script Executing ...")
     df = pd.read_csv(PLACED_CSV)
     filt = CalendarOpenReconciler(df).run()
     filt.to_csv(FILTERED_CSV, index=False)
@@ -69,21 +65,34 @@ def job_reconciler():
 
 def schedule_today():
     schedule.every().day.at("09:45", EASTERN).do(job_closer)
-    schedule.every().day.at("15:30", EASTERN).do(job_screener)
-    schedule.every().day.at("15:30", EASTERN).do(job_trade_sizer)
+    schedule.every().day.at("15:30", EASTERN).do(job_screener_and_sizer)
     schedule.every().day.at("15:40", EASTERN).do(job_opener)
     schedule.every().day.at("15:50", EASTERN).do(job_reconciler)
 
+def sleep_until_next_midnight():
+    now = dt.datetime.now(EASTERN)
+    tomorrow = (now + dt.timedelta(days=1)).date()
+    nxt_midnight = EASTERN.localize(dt.datetime.combine(tomorrow, dt.time.min))
+    seconds = (nxt_midnight - now).total_seconds()
+    time.sleep(max(1, seconds))
+
 def main():
-    if not is_market_day():
-        print("Market Closed Today. Resting Until Next Trading Day.")
-        return
-
-    schedule_today()
-    print("Executor Running …")
-
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     while True:
-        schedule.run_pending()
-        time.sleep(15)
+        today = dt.date.today()
+        et_now = dt.datetime.now(EASTERN)
+        et_today = et_now.date()
+
+        if is_market_day(et_today):
+            print(f"Market Is Open ... Executor Active")
+            schedule.clear()
+            schedule_today()
+            
+            while dt.datetime.now(EASTERN).date() == et_today:
+                schedule.run_pending()
+                time.sleep(15)
+        else:
+            print(f"Market Is Closed")
+            sleep_until_next_midnight()
 
 main()
