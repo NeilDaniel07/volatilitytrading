@@ -11,6 +11,8 @@ from pathlib import Path
 EASTERN = pytz.timezone("US/Eastern")
 NYSE = mcal.get_calendar("XNYS")
 
+STOP_PIPELINE = False
+
 VOL_THRESHOLD = 1500000
 IVRV_THRESHOLD = 1.25
 TS_SLOPE_THRESHOLD = -0.00406
@@ -29,39 +31,74 @@ def is_market_day(d=None):
 
 def job_closer():
     print("[09:45] - Position Closing Script Executing ...")
+    global STOP_PIPELINE
+    if STOP_PIPELINE:
+        STOP_PIPELINE = False
+        return False
     try:
         df = pd.read_csv(FILTERED_CSV)
     except FileNotFoundError:
         print("No Available Position Data To Close")
-        return
-
+        return False
     CalendarCloser(df).run()
     print("Closing Script Complete")
+    STOP_PIPELINE = False
+    return True
 
 def job_screener_and_sizer():
     print("[3:30] - Screening and Sizing Scripts Executing ...")
+    global STOP_PIPELINE
+    if STOP_PIPELINE:
+        print("Pipeline Stopped For Today ... Skipping This Step")
+        return False
     scan_date = dt.date.today().strftime("%Y-%m-%d")
     app = Screener(scan_date, VOL_THRESHOLD, IVRV_THRESHOLD, TS_SLOPE_THRESHOLD)
     app.outputDF.to_csv(RAW_SCREENER_CSV, index=False)
     print(f"Screener Produced {len(app.outputDF)} Rows")
-    df = pd.read_csv(RAW_SCREENER_CSV)
+    try:
+        df = pd.read_csv(RAW_SCREENER_CSV)
+    except FileNotFoundError:
+        print("No Available Screening Data")
+        STOP_PIPELINE = True
+        return False
     enriched = TradingDataCollector(df, dt.datetime.now()).run()
     enriched.to_csv(SIZEDTRADES_CSV, index=False)
     print("Trade Screening and Sizing Scripts Completed")
+    return True
 
 def job_opener():
     print("[3:40] - Position Opener Script Executing ...")
-    df = pd.read_csv(SIZEDTRADES_CSV)
+    global STOP_PIPELINE
+    if STOP_PIPELINE:
+        print("Pipeline Stopped For Today ... Skipping This Step")
+        return False
+    try:
+        df = pd.read_csv(SIZEDTRADES_CSV)
+    except FileNotFoundError:
+        print("No Available Sized Trades Data")
+        STOP_PIPELINE = True
+        return False
     orders_df = CalendarOpener(df).run()
     orders_df.to_csv(PLACED_CSV, index=False)
     print(f"Opener Placed {len(orders_df)} Complex Orders")
+    return True
 
 def job_reconciler():
     print("[3:50] -  Reconciliation Script Executing ...")
-    df = pd.read_csv(PLACED_CSV)
+    global STOP_PIPELINE
+    if STOP_PIPELINE:
+        print("Pipeline Stopped For Today ... Skipping This Step")
+        return False
+    try:
+        df = pd.read_csv(PLACED_CSV)
+    except FileNotFoundError:
+        print("No Available Sized Trades Data")
+        STOP_PIPELINE = True
+        return False
     filt = CalendarOpenReconciler(df).run()
     filt.to_csv(FILTERED_CSV, index=False)
     print("Reconcilation Script Completed")
+    return True
 
 def schedule_today():
     schedule.every().day.at("09:45", EASTERN).do(job_closer)
