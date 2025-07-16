@@ -26,7 +26,7 @@ FILTERED_CSV = DATA_DIR / "FilteredOrders.csv"
 
 def is_market_day(d=None):
     if d is None:
-        d = dt.date.today()
+        d = dt.datetime.now(EASTERN).date()
     return not NYSE.schedule(d, d).empty
 
 def job_closer():
@@ -116,7 +116,6 @@ def sleep_until_next_midnight():
 def main():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     while True:
-        today = dt.date.today()
         et_now = dt.datetime.now(EASTERN)
         et_today = et_now.date()
 
