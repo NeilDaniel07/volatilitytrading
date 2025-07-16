@@ -84,7 +84,7 @@ def job_opener():
     return True
 
 def job_reconciler():
-    print("[3:50] -  Reconciliation Script Executing ...")
+    print("[3:50] - Reconciliation Script Executing ...")
     global STOP_PIPELINE
     if STOP_PIPELINE:
         print("Pipeline Stopped For Today ... Skipping This Step")
