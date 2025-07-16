@@ -51,7 +51,7 @@ def job_screener_and_sizer():
     if STOP_PIPELINE:
         print("Pipeline Stopped For Today ... Skipping This Step")
         return False
-    scan_date = dt.date.today().strftime("%Y-%m-%d")
+    scan_date = dt.datetime.now(EASTERN).date().strftime("%Y-%m-%d")
     app = Screener(scan_date, VOL_THRESHOLD, IVRV_THRESHOLD, TS_SLOPE_THRESHOLD)
     app.outputDF.to_csv(RAW_SCREENER_CSV, index=False)
     print(f"Screener Produced {len(app.outputDF)} Rows")
@@ -92,12 +92,12 @@ def job_reconciler():
     try:
         df = pd.read_csv(PLACED_CSV)
     except FileNotFoundError:
-        print("No Available Sized Trades Data")
+        print("No Available Trading Data")
         STOP_PIPELINE = True
         return False
     filt = CalendarOpenReconciler(df).run()
     filt.to_csv(FILTERED_CSV, index=False)
-    print("Reconcilation Script Completed")
+    print("Reconciliation Script Completed")
     return True
 
 def schedule_today():
