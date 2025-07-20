@@ -25,15 +25,15 @@ class CalendarOpenReconciler:
     def extract_fills(self, orderJSON, frontSymbol, backSymbol):
         frontQuantity = 0
         backQuantity = 0
-        frontPrice = 0.0
-        backPrice =  0.0
+        frontPrice = -1.0
+        backPrice = -1.0
         for leg in orderJSON.get("legs", []):
             if leg["symbol"] == frontSymbol:
-                frontQuantity = int(leg["filled_qty"])
-                frontPrice  = float(leg.get("filled_avg_price", 0))
+                frontQuantity = int(leg.get("filled_qty", 0) or 0)
+                frontPrice = float(leg.get("filled_avg_price", -1.0) or -1.0)
             elif leg["symbol"] == backSymbol:
-                backQuantity = int(leg["filled_qty"])
-                backPrice  = float(leg.get("filled_avg_price", 0))
+                backQuantity = int(leg.get("filled_qty", 0) or 0)
+                backPrice = float(leg.get("filled_avg_price", -1.0) or -1.0)
         return frontQuantity, backQuantity, frontPrice, backPrice
     
     def get_quote_data(self, symbol, field):
@@ -73,7 +73,7 @@ class CalendarOpenReconciler:
         if status == "partially_filled":
             self.cancel_order(order_id)
             time.sleep(2) #Allow time for the order information to update
-            orderData = self.get_order(order_id) or orderData
+            orderData = self.get_order(order_id) or orderData #Short circuit if we could get updated order information
         
         front_fill, back_fill, frontPrice, backPrice = self.extract_fills(orderData, frontSymbol, backSymbol)
 
@@ -83,14 +83,14 @@ class CalendarOpenReconciler:
             
         minQuantity = min(front_fill, back_fill)
 
-        if front_fill > minQuantity:
+        if front_fill > minQuantity and frontPrice >= 0:
             extra = front_fill - minQuantity
             currentAsk = self.get_quote_data(frontSymbol, "ap")
             if currentAsk is not None and currentAsk <= (0.75 * frontPrice):
                 successful = self.dumpExcess(frontSymbol, extra, side="buy")
                 if successful:
                     front_fill = minQuantity
-        elif back_fill > minQuantity:
+        elif back_fill > minQuantity and backPrice >= 0:
             extra = back_fill - minQuantity
             currentBid = self.get_quote_data(backSymbol, "bp")
             if currentBid is not None and currentBid >= (0.75 * backPrice):

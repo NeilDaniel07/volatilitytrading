@@ -54,6 +54,8 @@ def job_screener_and_sizer():
     scan_date = dt.datetime.now(EASTERN).date().strftime("%Y-%m-%d")
     app = Screener(scan_date, VOL_THRESHOLD, IVRV_THRESHOLD, TS_SLOPE_THRESHOLD)
     app.outputDF.to_csv(RAW_SCREENER_CSV, index=False)
+    print("Dataframe After Screening: ")
+    print(app.outputDF.to_string())
     print(f"Screener Produced {len(app.outputDF)} Rows")
     try:
         df = pd.read_csv(RAW_SCREENER_CSV)
@@ -63,6 +65,8 @@ def job_screener_and_sizer():
         return False
     enriched = TradingDataCollector(df, dt.datetime.now()).run()
     enriched.to_csv(SIZEDTRADES_CSV, index=False)
+    print("Dataframe After Position Sizing: ")
+    print(enriched.to_string())
     print("Trade Screening and Sizing Scripts Completed")
     return True
 
@@ -80,7 +84,9 @@ def job_opener():
         return False
     orders_df = CalendarOpener(df).run()
     orders_df.to_csv(PLACED_CSV, index=False)
-    print(f"Opener Placed {len(orders_df)} Complex Orders")
+    print("Dataframe After Position Opening: ")
+    print(orders_df.to_string())
+    print("Opening Script Completed")
     return True
 
 def job_reconciler():
@@ -97,6 +103,8 @@ def job_reconciler():
         return False
     filt = CalendarOpenReconciler(df).run()
     filt.to_csv(FILTERED_CSV, index=False)
+    print("Dataframe After Reconcilation: ")
+    print(filt.to_string())
     print("Reconciliation Script Completed")
     return True
 
