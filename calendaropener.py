@@ -17,7 +17,7 @@ class CalendarOpener:
         self.df.sort_values("TS Slope", inplace=True)
 
         account = self.request("GET", f"{self.PAPER_DOMAIN}/v2/account")
-        self.orig_capital = float(account["options_buying_power"])
+        self.orig_capital = float(account["cash"])
         self.capital_left = self.orig_capital
 
         self.openPositions: List[Dict] = []
