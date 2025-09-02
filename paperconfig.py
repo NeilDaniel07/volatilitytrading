@@ -1,5 +1,8 @@
 from __future__ import annotations
 import os
+from dotenv import load_dotenv
+
+load_dotenv("keys.env")
 
 ALPACA_KEY: str | None = os.getenv("APCA_API_KEY_ID")
 ALPACA_SECRET_KEY: str | None = os.getenv("APCA_API_SECRET_KEY")

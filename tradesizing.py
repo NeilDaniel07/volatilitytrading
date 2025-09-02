@@ -21,6 +21,14 @@ class TradingDataCollector:
         self.wiggle = 10
         self.hdr = paperconfig.header
 
+    def __init__(self, date):
+        self.date = date
+        self.rate_limit_delay = 0.25
+        self.max_retries = 8
+        self.max_wait_time = 60
+        self.wiggle = 10
+        self.hdr = paperconfig.header
+        
     def run(self):
         rows: List[Dict] = []
 
@@ -85,7 +93,7 @@ class TradingDataCollector:
         return data["trade"]["p"]
 
     def get_expiry_dates(self, ticker, price):
-        today = self.date.date()
+        today = self.date
         initialOffset = (4 - today.weekday() + 7) % 7
         firstFriday = today + timedelta(days=initialOffset)
 

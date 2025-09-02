@@ -167,7 +167,6 @@ class Screener:
         else:
             return result.dropna()
         
-
     def build_term_structure(self, days, ivs):
         days = np.array(days)
         ivs = np.array(ivs)
