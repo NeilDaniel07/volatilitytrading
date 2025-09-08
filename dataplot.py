@@ -1,5 +1,5 @@
 import os
-import requests
+import json
 import time
 from tradesizing import TradingDataCollector
 from alpaca.data.historical import StockHistoricalDataClient, OptionHistoricalDataClient
@@ -36,6 +36,7 @@ class DataPlot():
 
         self.datapoints = {}
     def get_30day_average(self, ticker: str):
+        #print(f"\n{ticker}")
         end_date = self.date
         start_date = end_date - timedelta(days=30)
         volume_request = StockBarsRequest(
@@ -45,31 +46,39 @@ class DataPlot():
                             end=end_date
         )
         bars = self.stock_client.get_stock_bars(volume_request)
+        
+        if ticker not in bars.data:
+            print(f"[ERROR]: {ticker} is not accessible")
+            print(bars)
+            return 1
+
         data = bars[ticker]
         total_volume = 0
         num_days = 0
         for day in data:
             total_volume += day.volume
             num_days+=1
-        print(f"total_volume: {total_volume}, days: {num_days}, average_30_day_volume: {total_volume//num_days}")
+        #print(f"total_volume: {total_volume}, days: {num_days}, average_30_day_volume: {total_volume//num_days}")
         self.datapoints[ticker+"_front"] = [total_volume//num_days]
         self.datapoints[ticker+"_back"]  = [total_volume//num_days]
-        return None
+        return 0
 
     def get_bid_ask_percentage(self, ticker: str):
         ts = TradingDataCollector(self.date)
         price = ts.latest_trade_price(ticker)
         packed_expiries = ts.get_expiry_dates(ticker, price= price)
         f_date, b_date, f_opts, b_opts = packed_expiries
-        print(f_date, b_date)
-
+        #print(f_date, b_date)
+        if f_date == None or b_date == None:
+            print(f"[ERROR]: dates could not be found for {ticker}")
+            return 1
         valid_options = ts.at_the_money_common_strike(f_opts, b_opts, price)
         if valid_options is None:
-            print("ERROR: empty valid options")
-            return None
+            print("[ERROR]: empty valid options")
+            return 1
 
         strike, f_sym, b_sym = valid_options   
-        print(f_sym, b_sym)
+        #print(f_sym, b_sym)
         url = self.QUOTES.format(sym=f_sym)
         for attempt in range(self.max_retries):
             try:
@@ -78,17 +87,17 @@ class DataPlot():
                 attempt = self.max_retries
                 bid_ask_percentage = ((quote.ask_price-quote.bid_price)/quote.ask_price)*100
                 self.datapoints[(ticker + "_front")].append(bid_ask_percentage)
-                print(bid_ask_percentage)
+                #print(bid_ask_percentage)
                 break
             except APIError as e:
                 if attempt == self.max_retries - 1:
-                    print(f"[ERROR] {url} - {e}")
+                    print(f"[ERROR]: {url} - {e}")
                     return None
                 elif e.status_code == 404:
                     return None
                 elif e.status_code == 429:
                     wait = min(self.max_wait_time, self.rate_limit_delay * (2 ** attempt))
-                    print(f"[429 Error] waiting {wait} seconds - {url}")
+                    print(f"[429 Error]: waiting {wait} seconds - {url}")
                     time.sleep(wait)
                     continue
 
@@ -99,25 +108,34 @@ class DataPlot():
                 attempt = self.max_retries
                 bid_ask_percentage = ((quote.ask_price-quote.bid_price)/quote.ask_price)*100
                 self.datapoints[(ticker + "_back")].append(bid_ask_percentage)
-                print(bid_ask_percentage)
+                #print(bid_ask_percentage)
                 break
             except APIError as e:
                 if attempt == self.max_retries - 1:
-                    print(f"[ERROR] {url} - {e}")
-                    return None
+                    print(f"[ERROR]: {url} - {e}")
+                    return 1
                 elif e.status_code == 404:
-                    return None
+                    return 1
                 elif e.status_code == 429:
                     wait = min(self.max_wait_time, self.rate_limit_delay * (2 ** attempt))
-                    print(f"[429 Error] waiting {wait} seconds - {url}")
+                    print(f"[429 Error]: waiting {wait} seconds - {url}")
                     time.sleep(wait)
                     continue
-        return None
+        return 0
     def getDatapoints(self):
         return self.datapoints
 
 
 dp = DataPlot()
-dp.get_30day_average("AAPL")
-dp.get_bid_ask_percentage("AAPL")
-print(dp.getDatapoints())
+file = open("./Legacy/NasdaqAndNYSETradedStockscopy.csv", "r")
+for line in file:
+    ticker = line.strip("\n")
+    print(ticker)
+    ret = dp.get_30day_average(ticker)
+    if ret != 1:
+        inner_ret = dp.get_bid_ask_percentage(ticker)
+        if inner_ret != 1:
+            print(f"{ticker} worked!")
+            datapoints = dp.getDatapoints()
+            with open("./data/output.json", 'w') as fp:
+                json.dump(datapoints, fp, indent=2)
